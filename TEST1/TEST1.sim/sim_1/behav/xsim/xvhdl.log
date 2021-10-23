@@ -1,0 +1,4 @@
+INFO: [VRFC 10-163] Analyzing VHDL file "J:/Fall_2021/426/Lab/TEST1/top_level.vhdl" into library xil_defaultlib
+INFO: [VRFC 10-3107] analyzing entity 'top_level'
+INFO: [VRFC 10-163] Analyzing VHDL file "J:/Fall_2021/426/Lab/TEST1/top_level_tb.vhdl" into library xil_defaultlib
+INFO: [VRFC 10-3107] analyzing entity 'top_level_tb'
