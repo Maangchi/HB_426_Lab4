@@ -5,7 +5,8 @@ use IEEE.numeric_std.all;
 
 entity Data_Memory is
     generic(N : integer);
-    Port ( MemWrite : in std_logic;
+    Port ( clk : in std_logic;
+           MemWrite : in std_logic;
            MemRead : in std_logic;
            ALU_Result : in unsigned (N downto 0);
            Read_Data : out unsigned (N downto 0);

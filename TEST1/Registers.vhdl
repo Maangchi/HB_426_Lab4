@@ -14,7 +14,7 @@ entity Registers is
     Rt   : in unsigned(R downto 0);
     busW : in unsigned(N downto 0);
     --Outputs
-    BusA : out unsigned(N downto 0);
+    BusA: out unsigned(N downto 0);
     BusB: out unsigned(N downto 0));
 end entity;
 

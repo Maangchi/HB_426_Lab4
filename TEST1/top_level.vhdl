@@ -4,38 +4,28 @@ use IEEE.numeric_std.all;
 entity top_level is
     generic (N : integer := 15;
              R : integer := 2);
-    port(   
-    --Inputs
-    clk : in std_logic;
-    --Outputs
-    Overflow: out std_logic;
-    Carryout: out std_logic;
-    Result : out unsigned(N downto 0));
+    port    (clk : in std_logic);
     
 end top_level;
 architecture simple of top_level is
+
     --Control signals
     signal Opcode_MemtoReg : std_logic;
     signal Opcode_ALUSrc : std_logic;
     signal Opcode_RegDst : std_logic;
     signal ALUctr : unsigned(R downto 0);
+    signal Opcode_ALU_Control_Unit : unsigned(R downto 0);
     signal RegWr: std_logic;
     signal Jump_Sig : std_logic;
-    
-    --Instruction Memory Signal
-    signal Rd   : unsigned(R downto 0);
-    signal Rs   : unsigned(R downto 0);
-    signal Rt   : unsigned(R downto 0);
-    signal func : unsigned(R downto 0);
-    signal To_Opcode : unsigned(3 downto 0);
-    
-    --Control Signals
     signal Opcode_Branch : std_logic;
     signal Instruction_ToOp : unsigned(3 downto 0);
-    
-    --MemtoReg Mux Signals to 
-    signal ALU_Result: unsigned(N downto 0);
-    signal MemToReg_Result: unsigned(N downto 0);
+    signal Opcode_ClearReg : std_logic;
+    signal Opcode_LoadImmediatesMux : std_logic;
+    signal Opcode_LoadFourSelect_Sig : unsigned(1 downto 0);
+    signal Opcode_LoadUpperImmediate : unsigned(1 downto 0);
+    signal Opcode_LoadUpperMiddleImmediate : unsigned(1 downto 0);
+    signal Opcode_LoadLowerMiddleImmediate : unsigned(1 downto 0);
+    signal Opcode_LoadLowerImmediate : unsigned(1 downto 0);
     
     --Registers Signals for 
     signal Write_Register : unsigned(R downto 0);
@@ -43,10 +33,27 @@ architecture simple of top_level is
     signal busB : unsigned(N downto 0);
     signal busW : unsigned(N downto 0);
     
+    --Instruction Memory Signal
+    signal Rd   : unsigned(R downto 0);
+    signal Rs   : unsigned(R downto 0);
+    signal Rt   : unsigned(R downto 0);
+    signal func : unsigned(R downto 0);
+    signal To_Opcode : unsigned(3 downto 0);
+    signal immediate_sig : unsigned(5 downto 0);
+    
     --Data Memory Signals for 
     signal Mem_Write_sig : std_logic;
     signal Mem_Read_sig : std_logic;
     signal Read_Data_Mux : unsigned(N downto 0);
+    
+    --MemtoReg Mux Signals to 
+    signal ALU_Result: unsigned(N downto 0);
+    signal MemToReg_Result: unsigned(N downto 0);
+    --Loads Immediates Mux signals
+    signal Loads_Immediates_Mux_Result : unsigned(N downto 0);
+    
+    --ALU Src Mux Signals
+    signal Result_of_ALU_Src : unsigned(N downto 0);
     
     --Sign Extend signals
     signal immediate : unsigned(5 downto 0);
@@ -54,7 +61,7 @@ architecture simple of top_level is
     
     --Small Adder one Signal from PC to 
     signal From_PC : unsigned(N downto 0);
-    signal Plus_Four : unsigned(N downto 0);
+    signal Plus_One : unsigned(N downto 0);
     signal Small_Adder_One_Result : unsigned(N downto 0);
     
     --Small Adder Two Signal For 
@@ -72,30 +79,48 @@ architecture simple of top_level is
     --Branch Mux signals 
     signal To_PC : unsigned(15 downto 0);
     
+    --Clear Reg Mux Signals
+    signal ClearMux_Result : unsigned(N downto 0);
+    
     --Jump Mux signals 
     signal To_Jump_Mux : unsigned(15 downto 0);
     
-    --Shift Bubble Jump
+    --Shift BubbleS Jump
     signal Shift_Amount_Jump : unsigned(3 downto 0) := "0010";
     signal Shift_Bubble_To_Jump_Mux : unsigned(N downto 0);
+    signal Shift_Amount_LUI : unsigned(3 downto 0) := "0100";
+    signal Shift_Amount_LMU : unsigned(3 downto 0) := "1000";
+    signal Shift_Amount_LML : unsigned(3 downto 0) := "1100";
+    signal Shift_Amount_LLI : unsigned(3 downto 0) := "0000";
+    signal Shift_LUI_Result : unsigned(N downto 0);
+    signal Shift_LMU_Result : unsigned(N downto 0);
+    signal Shift_LML_Result : unsigned(N downto 0);
+    signal Shift_LLI_Result : unsigned(N downto 0);
+    signal Load_Immediates_Results_Result : unsigned(N downto 0);
     
     --Combine Jump and Small adder signal
     signal Jump_Address : unsigned(N downto 0);
     
     --Shift Bubble Sign Extend
     signal SHSE_Result : unsigned(N downto 0);
-    
 begin
-    Result <= busW;
     
     Instruction_Memory : entity work.Instruction_Memory(behavioral)
-    port map(Read_Address=>To_Instruction_Mem,
-           Rs=>Rs,
-           Rt=>Rt,
-           Rd=>Rd,
-           Func=>Func,
-           Opcode=>Instruction_ToOp,
-           Instruction_Jump_shift=>Instruction_Jump_Shift);
+    port map(Read_Address=>From_PC,
+             clk=>clk,
+             Rs=>Rs,
+             Rt=>Rt,
+             Rd=>Rd,
+             Func=>Func,
+             immediate=>immediate_sig,
+             Opcode=>Instruction_ToOp,
+             Instruction_Jump_shift=>Instruction_Jump_Shift);
+           
+    PC : entity work.PC(behavioral)
+    generic map(N=>N)
+    port map(clk=>clk,
+             A=>To_PC,
+             C=>From_PC);
     
     Control : entity work.Control(behavioral)
     port map(Opcode => Instruction_ToOp,
@@ -103,22 +128,38 @@ begin
            Branch=> Opcode_Branch,
            MemRead=>Mem_Read_sig,
            MemtoReg=>Opcode_MemtoReg,
-           ALUOp=>ALUCtr,
+           ALUOp=>Opcode_ALU_Control_Unit,
            MemWrite=>Mem_Write_sig,
            ALUSrc=>Opcode_ALUSrc,
            RegWrite=>RegWr,
+           LoadImmediatesMux=>Opcode_LoadImmediatesMux,
+           loadFourSelect=>Opcode_LoadFourSelect_Sig,
            Jump=>Jump_Sig);
     
-    ALU : entity work.ALUctr(behavior)
+    Mux_LoadImmediatesDecoder : entity work.Mux_LoadImmediates(Behavioral)
+    generic map(N=>N)
+    port map(whichLoad=>Opcode_LoadFourSelect_Sig,
+             C=>Sign_extend_Result_sig,
+             D=>Sign_extend_Result_sig,
+             E=>Sign_extend_Result_sig,
+             F=>Sign_extend_Result_sig
+             );
+    
+    ALU : entity work.ALU(behavior)
     generic map(N => N,
                 R => R)
     port map(ALUctr => ALUctr,
              BusA => busA,
-             BusB => busB,
+             BusB => Result_of_ALU_Src,
              Result => busW,
-             Zero => ALU_Zero,
-             Overflow => Overflow,
-             Carryout => Carryout);
+             Zero => ALU_Zero
+             );
+     ALU_Control_Unit : entity work.ALU_Control_Unit(behavioral)
+     generic map(R=>R)
+     port map(A=>func,
+              B=>Opcode_ALU_Control_Unit,
+              C=>ALUCtr
+              );
              
      Registers : entity work.Registers(behavior)
      generic map(N => N,
@@ -128,13 +169,14 @@ begin
              RegWr => RegWr,
              Rs => Rs,
              Rt => Rt,
-             busW => busW,
+             busW => ClearMux_Result,
              BusA => BusA,
              BusB => BusB);
              
       Mem : entity work.Data_Memory(Behavioral)
       generic map(N => N)
-      port map(ALU_Result=>busW,
+      port map(clk => clk,
+               ALU_Result=>busW,
                Write_Data=>BusB,
                MemWrite=>Mem_Write_sig,
                MemRead=>Mem_Read_sig,
@@ -146,13 +188,27 @@ begin
                 A=>Read_Data_Mux,
                 B=>busW,
                 C=>MemToReg_Result);
-                
+       
+       MUX_ClearReg : entity work.Mux(Behavioral)
+       generic map(N => N)
+       port map(Sel=> Opcode_ClearReg,
+                A=>MemToReg_Result,
+                B=>busW,
+                C=>ClearMux_Result);
+               
        MUX_ALUSrc : entity work.Mux(Behavioral)
        generic map(N => N)
        port map(Sel=> Opcode_ALUSrc,
                 A=>BusB,
-                B=>Sign_Extend_Result_sig,
-                C=>MemToReg_Result);
+                B=>Loads_Immediates_Mux_Result,
+                C=>Result_of_ALU_Src);
+                
+       MUX_LoadImmediates : entity work.Mux(Behavioral)
+       generic map(N => N)
+       port map(Sel=> Opcode_LoadImmediatesMux,
+                A=>Sign_Extend_Result_sig,
+                B=>Load_Immediates_Results_Result,
+                C=>Loads_Immediates_Mux_Result);
                 
        Mux_RegDst : entity work.Mux(Behavioral)
        generic map(N => 2)
@@ -173,23 +229,22 @@ begin
         port map(Sel=>Jump_Sig,
                 A=> To_Jump_Mux,
                 B=> Jump_Address,
-                C=>To_PC);
+                C=>To_PC);        
         
         AND_GATE : entity work.And_gate(Behavioral)
         port map(A => Opcode_Branch,
                  B => ALU_Zero,
                  C => Out_to_Mux_Branch);            
                         
-                
         Sign_Extend : entity work.Sign_Extend(Behavioral)
         generic map(N => N)
-        port map(Immediate=>immediate,
+        port map(Immediate=>immediate_sig,
                  Sign_Extend_Result=>Sign_Extend_Result_sig);
                  
         Small_Adder_One : entity work.Small_Adder(Behavioral)
         generic map(N => N)
         port map(A=>From_PC,
-                 B=>Plus_Four,
+                 B=>Plus_One, ---this should be just 1, since we only move one line to reach the next instruction address
                  C=>Small_Adder_One_Result);
         
         Small_Adder_Two : entity work.Small_Adder(Behavioral)
@@ -212,11 +267,47 @@ begin
                  B=>Shift_Amount_Jump,
                  C=>SHSE_Result);
                  
+        Shift_LUI : entity work.Shift_Bubble(Behavioral)
+        generic map(N => N,
+                    R => N)
+        port map(A=>Sign_Extend_Result_sig,
+                 B=>Shift_Amount_LUI,
+                 C=>Shift_LUI_Result);
+                 
+        Shift_LMU : entity work.Shift_Bubble(Behavioral)
+        generic map(N => N,
+                    R => N)
+        port map(A=>Sign_Extend_Result_sig,
+                 B=>Shift_Amount_LMU,
+                 C=>Shift_LMU_Result);   
+                 
+        Shift_LML : entity work.Shift_Bubble(Behavioral)
+        generic map(N => N,
+                    R => N)
+        port map(A=>Sign_Extend_Result_sig,
+                 B=>Shift_Amount_LML,
+                 C=>Shift_LML_Result);
+                          
+        Shift_LLI : entity work.Shift_Bubble(Behavioral)
+        generic map(N => N,
+                    R => N)
+        port map(A=>Sign_Extend_Result_sig,
+                 B=>Shift_Amount_LLI,
+                 C=>Shift_LLI_Result);
+                 
+        Load_Immediates_Result : entity work.Load_Immediates_Result(Behavioral)
+        generic map(N => N)
+        port map(A=>Shift_LUI_Result,
+                 B=>Shift_LMU_Result,
+                 C=>Shift_LML_Result,
+                 D=>Shift_LLI_Result,
+                 E=>Load_Immediates_Results_Result
+                 );             
+                 
         Combine_JShift_OneSmall : entity work.Combine_JShift_OneSmall(Behavioral)
         generic map(N => N)
         port map(A=>Shift_Bubble_To_Jump_Mux,
                  B=>Small_Adder_One_Result,
                  C=>Jump_Address);           
-                                                               
-                      
+
 end architecture;

@@ -12,6 +12,8 @@ entity Control is
            MemWrite : out STD_LOGIC;
            ALUSrc : out STD_LOGIC;
            RegWrite : out STD_LOGIC;
+           LoadImmediatesMux : out STD_LOGIC;
+           loadFourSelect : out unsigned(1 downto 0);
            Jump : out STD_LOGIC);
 end Control;
 
