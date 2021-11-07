@@ -21,11 +21,7 @@ architecture simple of top_level is
     signal Instruction_ToOp : unsigned(3 downto 0);
     signal Opcode_ClearReg : std_logic;
     signal Opcode_LoadImmediatesMux : std_logic;
-    signal Opcode_LoadFourSelect_Sig : unsigned(1 downto 0);
-    signal Opcode_LoadUpperImmediate : unsigned(1 downto 0);
-    signal Opcode_LoadUpperMiddleImmediate : unsigned(1 downto 0);
-    signal Opcode_LoadLowerMiddleImmediate : unsigned(1 downto 0);
-    signal Opcode_LoadLowerImmediate : unsigned(1 downto 0);
+    signal Opcode_LoadImmediate_Selection : unsigned(1 downto 0);
     
     --Registers Signals for 
     signal Write_Register : unsigned(R downto 0);
@@ -81,7 +77,7 @@ architecture simple of top_level is
     
     --Clear Reg Mux Signals
     signal ClearMux_Result : unsigned(N downto 0);
-    
+    signal ClearOn : unsigned(N downto 0);
     --Jump Mux signals 
     signal To_Jump_Mux : unsigned(15 downto 0);
     
@@ -89,7 +85,7 @@ architecture simple of top_level is
     signal Shift_Amount_Jump : unsigned(3 downto 0) := "0010";
     signal Shift_Bubble_To_Jump_Mux : unsigned(N downto 0);
     signal Load_Immediates_Results_Result : unsigned(N downto 0);
-    signal Shift_Load_Immediate_Result : unsigned(N downto 0);
+    signal Load_Immediate_Result : unsigned(N downto 0);
     signal Shift_Amount : unsigned (3 downto 0);
     
     --Combine Jump and Small adder signal
@@ -126,6 +122,8 @@ begin
            MemWrite=>Mem_Write_sig,
            ALUSrc=>Opcode_ALUSrc,
            RegWrite=>RegWr,
+           LoadImmediateSelect=>Opcode_LoadImmediate_Selection,
+           ClearReg=>Opcode_ClearReg,
            LoadImmediatesMux=>Opcode_LoadImmediatesMux,
            Jump=>Jump_Sig);
            
@@ -171,7 +169,7 @@ begin
        generic map(N => N)
        port map(Sel=> Opcode_ClearReg,
                 A=>MemToReg_Result,
-                B=>busW,
+                B=>ClearOn,
                 C=>ClearMux_Result);
                
        MUX_ALUSrc : entity work.Mux(Behavioral)
@@ -185,7 +183,7 @@ begin
        generic map(N => N)
        port map(Sel=> Opcode_LoadImmediatesMux,
                 A=>Sign_Extend_Result_sig,
-                B=>Shift_Load_Immediate_Result,
+                B=>Load_Immediate_Result,
                 C=>Loads_Immediates_Mux_Result);
                 
        Mux_RegDst : entity work.Mux(Behavioral)
@@ -245,13 +243,13 @@ begin
                  B=>Shift_Amount_Jump,
                  C=>SHSE_Result);
         
-        Shift_Load_Immediate : entity work.Shift_Bubble(Behavioral)
+        Load_Immediate_Component : entity work.Load_Immediate_Component(Behavioral)
         generic map(N=>N,
-                    R => N)
+                    R => 1)
         port map(A=>Sign_Extend_Result_sig,
-                 B=>Shift_Amount,
-                 C=>Shift_Load_Immediate_Result
-                 );
+                 B=>Opcode_LoadImmediate_Selection,
+                 C=>Load_Immediate_Result
+                 );          
         
         Combine_JShift_OneSmall : entity work.Combine_JShift_OneSmall(Behavioral)
         generic map(N => N)
