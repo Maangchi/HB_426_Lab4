@@ -88,15 +88,9 @@ architecture simple of top_level is
     --Shift BubbleS Jump
     signal Shift_Amount_Jump : unsigned(3 downto 0) := "0010";
     signal Shift_Bubble_To_Jump_Mux : unsigned(N downto 0);
-    signal Shift_Amount_LUI : unsigned(3 downto 0) := "0100";
-    signal Shift_Amount_LMU : unsigned(3 downto 0) := "1000";
-    signal Shift_Amount_LML : unsigned(3 downto 0) := "1100";
-    signal Shift_Amount_LLI : unsigned(3 downto 0) := "0000";
-    signal Shift_LUI_Result : unsigned(N downto 0);
-    signal Shift_LMU_Result : unsigned(N downto 0);
-    signal Shift_LML_Result : unsigned(N downto 0);
-    signal Shift_LLI_Result : unsigned(N downto 0);
     signal Load_Immediates_Results_Result : unsigned(N downto 0);
+    signal Shift_Load_Immediate_Result : unsigned(N downto 0);
+    signal Shift_Amount : unsigned (3 downto 0);
     
     --Combine Jump and Small adder signal
     signal Jump_Address : unsigned(N downto 0);
@@ -107,7 +101,6 @@ begin
     
     Instruction_Memory : entity work.Instruction_Memory(behavioral)
     port map(Read_Address=>From_PC,
-             clk=>clk,
              Rs=>Rs,
              Rt=>Rt,
              Rd=>Rd,
@@ -125,26 +118,17 @@ begin
     Control : entity work.Control(behavioral)
     port map(Opcode => Instruction_ToOp,
            RegDst=> Opcode_RegDst,
+           Func => Func,
            Branch=> Opcode_Branch,
            MemRead=>Mem_Read_sig,
            MemtoReg=>Opcode_MemtoReg,
-           ALUOp=>Opcode_ALU_Control_Unit,
+           ALUOp=>ALUCtr,
            MemWrite=>Mem_Write_sig,
            ALUSrc=>Opcode_ALUSrc,
            RegWrite=>RegWr,
            LoadImmediatesMux=>Opcode_LoadImmediatesMux,
-           loadFourSelect=>Opcode_LoadFourSelect_Sig,
            Jump=>Jump_Sig);
-    
-    Mux_LoadImmediatesDecoder : entity work.Mux_LoadImmediates(Behavioral)
-    generic map(N=>N)
-    port map(whichLoad=>Opcode_LoadFourSelect_Sig,
-             C=>Sign_extend_Result_sig,
-             D=>Sign_extend_Result_sig,
-             E=>Sign_extend_Result_sig,
-             F=>Sign_extend_Result_sig
-             );
-    
+           
     ALU : entity work.ALU(behavior)
     generic map(N => N,
                 R => R)
@@ -154,12 +138,6 @@ begin
              Result => busW,
              Zero => ALU_Zero
              );
-     ALU_Control_Unit : entity work.ALU_Control_Unit(behavioral)
-     generic map(R=>R)
-     port map(A=>func,
-              B=>Opcode_ALU_Control_Unit,
-              C=>ALUCtr
-              );
              
      Registers : entity work.Registers(behavior)
      generic map(N => N,
@@ -207,7 +185,7 @@ begin
        generic map(N => N)
        port map(Sel=> Opcode_LoadImmediatesMux,
                 A=>Sign_Extend_Result_sig,
-                B=>Load_Immediates_Results_Result,
+                B=>Shift_Load_Immediate_Result,
                 C=>Loads_Immediates_Mux_Result);
                 
        Mux_RegDst : entity work.Mux(Behavioral)
@@ -266,44 +244,15 @@ begin
         port map(A=>Sign_Extend_Result_sig,
                  B=>Shift_Amount_Jump,
                  C=>SHSE_Result);
-                 
-        Shift_LUI : entity work.Shift_Bubble(Behavioral)
-        generic map(N => N,
+        
+        Shift_Load_Immediate : entity work.Shift_Bubble(Behavioral)
+        generic map(N=>N,
                     R => N)
         port map(A=>Sign_Extend_Result_sig,
-                 B=>Shift_Amount_LUI,
-                 C=>Shift_LUI_Result);
-                 
-        Shift_LMU : entity work.Shift_Bubble(Behavioral)
-        generic map(N => N,
-                    R => N)
-        port map(A=>Sign_Extend_Result_sig,
-                 B=>Shift_Amount_LMU,
-                 C=>Shift_LMU_Result);   
-                 
-        Shift_LML : entity work.Shift_Bubble(Behavioral)
-        generic map(N => N,
-                    R => N)
-        port map(A=>Sign_Extend_Result_sig,
-                 B=>Shift_Amount_LML,
-                 C=>Shift_LML_Result);
-                          
-        Shift_LLI : entity work.Shift_Bubble(Behavioral)
-        generic map(N => N,
-                    R => N)
-        port map(A=>Sign_Extend_Result_sig,
-                 B=>Shift_Amount_LLI,
-                 C=>Shift_LLI_Result);
-                 
-        Load_Immediates_Result : entity work.Load_Immediates_Result(Behavioral)
-        generic map(N => N)
-        port map(A=>Shift_LUI_Result,
-                 B=>Shift_LMU_Result,
-                 C=>Shift_LML_Result,
-                 D=>Shift_LLI_Result,
-                 E=>Load_Immediates_Results_Result
-                 );             
-                 
+                 B=>Shift_Amount,
+                 C=>Shift_Load_Immediate_Result
+                 );
+        
         Combine_JShift_OneSmall : entity work.Combine_JShift_OneSmall(Behavioral)
         generic map(N => N)
         port map(A=>Shift_Bubble_To_Jump_Mux,

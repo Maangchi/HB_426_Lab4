@@ -3,7 +3,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
 entity Instruction_Memory is
-    Port ( clk : in std_logic;
+    Port (
            Read_Address : in unsigned (15 downto 0);
            Rs : out unsigned (2 downto 0);
            Rt : out unsigned (2 downto 0);
