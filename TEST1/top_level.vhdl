@@ -55,6 +55,10 @@ architecture simple of top_level is
     signal immediate : unsigned(5 downto 0);
     signal Sign_extend_Result_sig : unsigned (N downto 0);
     
+    --Load_Immediates from data memory Mux
+    signal load_Immediate_Low : unsigned(N downto 0);
+    signal load_Immediate_high : unsigned(N downto 0);
+    
     --Small Adder one Signal from PC to 
     signal From_PC : unsigned(N downto 0);
     signal Plus_One : unsigned(N downto 0);
@@ -161,7 +165,7 @@ begin
        MUX_MemToReg : entity work.Mux(Behavioral)
        generic map(N => N)
        port map(Sel=> Opcode_MemtoReg,
-                A=>Read_Data_Mux,
+                A=>load_Immediate_Low,
                 B=>busW,
                 C=>MemToReg_Result);
        
@@ -186,6 +190,13 @@ begin
                 B=>Load_Immediate_Result,
                 C=>Loads_Immediates_Mux_Result);
                 
+       Mux_LoadImmed_DataMem : entity work.Mux_Two_Outputs(Behavioral)            
+       generic map(N => N)
+       port map(Sel=> Opcode_LoadImmediatesMux,
+                A=>Read_Data_Mux,
+                C=>load_Immediate_Low,
+                D=>load_Immediate_high);            
+                
        Mux_RegDst : entity work.Mux(Behavioral)
        generic map(N => 2)
        port map(Sel=>Opcode_RegDst,
@@ -199,7 +210,7 @@ begin
                 A=> Small_Adder_One_Result,
                 B=> Small_Adder_Two_Result,
                 C=>To_Jump_Mux);
-                
+        
         Mux_Jump : entity work.Mux(Behavioral)
         generic map(N => N)
         port map(Sel=>Jump_Sig,
@@ -246,8 +257,9 @@ begin
         Load_Immediate_Component : entity work.Load_Immediate_Component(Behavioral)
         generic map(N=>N,
                     R => 1)
-        port map(A=>Sign_Extend_Result_sig,
-                 B=>Opcode_LoadImmediate_Selection,
+        port map(Sel=>Opcode_LoadImmediate_Selection,
+                 A=>Sign_Extend_Result_sig,
+                 B=>load_Immediate_high,
                  C=>Load_Immediate_Result
                  );          
         
