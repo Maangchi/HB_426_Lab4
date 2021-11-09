@@ -37,6 +37,8 @@ architecture simple of top_level is
     signal To_Opcode : unsigned(3 downto 0);
     signal immediate_sig : unsigned(5 downto 0);
     
+    --ALU signals
+    
     --Data Memory Signals for 
     signal Mem_Write_sig : std_logic;
     signal Mem_Read_sig : std_logic;
@@ -93,8 +95,10 @@ architecture simple of top_level is
     signal Shift_Amount : unsigned (3 downto 0);
     
     --Mux From Reg to load immediate mux to Data Memory
-    signal BusbToLoadImmediate : unsigned(N downto 0);
-    
+    signal BusBInterConnector : unsigned(N downto 0);
+    signal BusAtoLoadImmediate : unsigned(N downto 0);
+    signal LoadImmediateZero_Sig : unsigned(N downto 0);
+    signal MUX_ALU_To_LoadImmediate_Result : unsigned(N downto 0);
     --Combine Jump and Small adder signal
     signal Jump_Address : unsigned(N downto 0);
     
@@ -153,14 +157,14 @@ begin
              Rs => Rs,
              Rt => Rt,
              busW => ClearMux_Result,
-             BusA => BusA,
-             BusB => BusbToLoadImmediate);
+             BusA => BusAtoLoadImmediate,
+             BusB => BusBInterConnector);
              
       Mem : entity work.Data_Memory(Behavioral)
       generic map(N => N)
       port map(clk => clk,
                ALU_Result=>busW,
-               Write_Data=>BusB,
+               Write_Data=>BusBInterConnector,
                MemWrite=>Mem_Write_sig,
                MemRead=>Mem_Read_sig,
                Read_Data=> Read_Data_Mux);
@@ -168,21 +172,21 @@ begin
        MUX_MemToReg : entity work.Mux(Behavioral)
        generic map(N => N)
        port map(Sel=> Opcode_MemtoReg,
-                A=>load_Immediate_Low,
+                A=>Read_Data_Mux,
                 B=>busW,
                 C=>MemToReg_Result);
        
        MUX_ClearReg : entity work.Mux(Behavioral)
        generic map(N => N)
        port map(Sel=> Opcode_ClearReg,
-                A=>MemToReg_Result,
+                A=>MUX_ALU_To_LoadImmediate_Result,
                 B=>ClearOn,
                 C=>ClearMux_Result);
-               
+
        MUX_ALUSrc : entity work.Mux(Behavioral)
        generic map(N => N)
        port map(Sel=> Opcode_ALUSrc,
-                A=>BusB,
+                A=>BusBInterConnector,
                 B=>Loads_Immediates_Mux_Result,
                 C=>Result_of_ALU_Src);
                 
@@ -193,20 +197,34 @@ begin
                 B=>Load_Immediate_Result,
                 C=>Loads_Immediates_Mux_Result);
                 
-       Mux_LoadImmed_DataMem : entity work.Mux_Two_Outputs(Behavioral)            
+       MUX_ALU_To_LoadImmediate_Mux : entity work.Mux(Behavioral)
        generic map(N => N)
        port map(Sel=> Opcode_LoadImmediatesMux,
-                A=>Read_Data_Mux,
-                C=>load_Immediate_Low,
-                D=>load_Immediate_high);      
-       
-       MUX_AluToMemWrite_LoadImmediateMux : entity work.Mux(Behavioral)
-       generic map(N => N)
-       port map(Sel=> Opcode_LoadImmediatesMux,
-                A=>BusbToLoadImmediate,
+                A=>MemToReg_Result,
                 B=>busW,
-                C=>BusB);      
+                C=>MUX_ALU_To_LoadImmediate_Result);
                 
+--       Mux_LoadImmed_DataMem : entity work.Mux_Two_Outputs(Behavioral)            
+--       generic map(N => N)
+--       port map(Sel=> Opcode_LoadImmediatesMux,
+--                A=>Read_Data_Mux,
+--                C=>load_Immediate_Low,
+--                D=>load_Immediate_high);      
+       
+--       MUX_AluToMemWrite_LoadImmediateMux : entity work.Mux(Behavioral)
+--       generic map(N => N)
+--       port map(Sel=> Opcode_LoadImmediatesMux,
+--                A=>BusBInterConnector,
+--                B=>busW,
+--                C=>BusB);      
+       
+       MUX_FromRegisterA_ToAlu : entity work.Mux(Behavioral)
+       generic map(N => N)
+       port map(Sel=> Opcode_LoadImmediatesMux,
+                A=>BusAtoLoadImmediate,
+                B=>LoadImmediateZero_Sig,
+                C=>BusA); 
+       
        Mux_RegDst : entity work.Mux(Behavioral)
        generic map(N => 2)
        port map(Sel=>Opcode_RegDst,
