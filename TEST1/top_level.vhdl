@@ -92,6 +92,9 @@ architecture simple of top_level is
     signal Load_Immediate_Result : unsigned(N downto 0);
     signal Shift_Amount : unsigned (3 downto 0);
     
+    --Mux From Reg to load immediate mux to Data Memory
+    signal BusbToLoadImmediate : unsigned(N downto 0);
+    
     --Combine Jump and Small adder signal
     signal Jump_Address : unsigned(N downto 0);
     
@@ -151,7 +154,7 @@ begin
              Rt => Rt,
              busW => ClearMux_Result,
              BusA => BusA,
-             BusB => BusB);
+             BusB => BusbToLoadImmediate);
              
       Mem : entity work.Data_Memory(Behavioral)
       generic map(N => N)
@@ -195,7 +198,14 @@ begin
        port map(Sel=> Opcode_LoadImmediatesMux,
                 A=>Read_Data_Mux,
                 C=>load_Immediate_Low,
-                D=>load_Immediate_high);            
+                D=>load_Immediate_high);      
+       
+       MUX_AluToMemWrite_LoadImmediateMux : entity work.Mux(Behavioral)
+       generic map(N => N)
+       port map(Sel=> Opcode_LoadImmediatesMux,
+                A=>BusbToLoadImmediate,
+                B=>busW,
+                C=>BusB);      
                 
        Mux_RegDst : entity work.Mux(Behavioral)
        generic map(N => 2)
