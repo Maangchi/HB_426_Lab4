@@ -285,11 +285,9 @@ begin
         Load_Immediate_Component : entity work.Load_Immediate_Component(Behavioral)
         generic map(N=>N,
                     R => 1)
-        port map(Sel=>Opcode_LoadImmediate_Selection,
-                 A=>Sign_Extend_Result_sig,
-                 B=>load_Immediate_high,
-                 C=>Load_Immediate_Result
-                 );          
+        port map(A=>Sign_Extend_Result_sig,
+                 B=>Opcode_LoadImmediate_Selection,
+                 C=>Load_Immediate_Result);       
         
         Combine_JShift_OneSmall : entity work.Combine_JShift_OneSmall(Behavioral)
         generic map(N => N)
